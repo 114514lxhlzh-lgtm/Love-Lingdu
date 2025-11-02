@@ -1,0 +1,1087 @@
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Tax-Script/Misc./refs/heads/main/windui.txt"))()
+
+-- 创建时间显示
+local TimeGui = Instance.new("ScreenGui")
+TimeGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+TimeGui.Name = "TimeDisplay"
+TimeGui.ResetOnSpawn = false
+
+local TimeLabel = Instance.new("TextLabel")
+TimeLabel.Size = UDim2.new(0, 150, 0, 40)
+TimeLabel.Position = UDim2.new(1, -250, 0, 10)
+TimeLabel.BackgroundTransparency = 1
+TimeLabel.Text = "00:00:00"
+TimeLabel.TextColor3 = Color3.new(1, 1, 1)
+TimeLabel.TextSize = 18
+TimeLabel.Font = Enum.Font.GothamBold
+TimeLabel.TextXAlignment = Enum.TextXAlignment.Right
+TimeLabel.Visible = false
+TimeLabel.Parent = TimeGui
+
+-- 确保时间GUI持续存在
+game:GetService("RunService").Heartbeat:Connect(function()
+    if not TimeGui.Parent then
+        TimeGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+    end
+end)
+
+local function UpdateTime()
+    while true do
+        pcall(function()
+            local currentTime = os.date("%H:%M:%S")
+            TimeLabel.Text = currentTime
+        end)
+        wait(1)
+    end
+end
+coroutine.wrap(UpdateTime)()
+
+local Window = WindUI:CreateWindow({
+    Title = "Love Lingdu",
+    Icon = "crown",
+    IconThemed = true,
+    Author = "v1.0",
+    Folder = "MyGUI",
+    Size = UDim2.fromOffset(510,410),
+    Transparent = true,
+    Theme = "Dark",
+    Background = "rbxassetid://130456649869168",
+    User = {
+        Enabled = true,
+        Callback = function() end,
+        Anonymous = false
+    },
+    SideBarWidth = 200,
+    ScrollBarEnabled = true,
+})
+
+Window:SetBackgroundImageTransparency(0.3)
+Window:EditOpenButton({
+    Title = "Love Lingdu",
+    Icon = "crown",
+    CornerRadius = UDim.new(5,20),
+    StrokeThickness = 1.5,
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0.00, Color3.fromHex("8A2BE2")),
+        ColorSequenceKeypoint.new(0.55, Color3.fromHex("4B0082")),
+        ColorSequenceKeypoint.new(1.00, Color3.fromHex("FF00FF"))
+    }),
+    Draggable = true,
+})
+
+local Tabs = {
+    Main = Window:Tab({ Title = "主页", Icon = "rbxassetid://6026568198" }),
+    GongGao = Window:Tab({ Title = "公告", Icon = "star"}),
+    ChangYong = Window:Tab({ Title = "通用功能", Icon = "settings" }),
+    ZiMiao = Window:Tab({ Title = "自瞄功能", Icon = "crosshair" }),
+    HuanRao = Window:Tab({ Title = "环绕功能", Icon = "orbit" }),
+    ChuanSong = Window:Tab({ Title = "传送", Icon = "navigation" }),
+    EGaO = Window:Tab({ Title = "恶搞漏洞", Icon = "star" }),
+    MeiHua = Window:Tab({ Title = "美化区", Icon = "sparkles" })
+}
+
+Tabs.Main:Paragraph({
+    Title = "欢迎使用 Love Lingdu",
+    Desc = "QQ群 1011489578",
+    Image = "https://c-ssl.duitang.com/uploads/blog/202310/21/oVS4gnBVIg4A1yJ.jpg",
+    ImageSize = 50,
+    Thumbnail = "https://c-ssl.duitang.com/uploads/blog/202103/27/20210327131203_74b6b.jpg",
+    ThumbnailSize = 130,
+})
+
+-- 时间设置
+local timeColor = Color3.new(1, 1, 1)
+local timeSize = 18
+local timeVisible = false
+
+Tabs.Main:Toggle({
+    Title = "显示时间",
+    Value = false,
+    Callback = function(value)
+        timeVisible = value
+        TimeLabel.Visible = value
+    end
+})
+
+Tabs.Main:Colorpicker({
+    Title = "时间颜色",
+    Default = timeColor,
+    Callback = function(color)
+        timeColor = color
+        TimeLabel.TextColor3 = color
+    end
+})
+
+Tabs.Main:Input({
+    Title = "时间大小",
+    Default = "18",
+    PlaceholderText = "输入字体大小 (12-30)",
+    Callback = function(value)
+        local numValue = tonumber(value)
+        if numValue and numValue >= 12 and numValue <= 30 then
+            timeSize = numValue
+            TimeLabel.TextSize = timeSize
+        else
+            warn("请输入12-30之间的数字")
+        end
+    end
+})
+
+Tabs.GongGao:Paragraph({
+    Title = "Love Lingdu 功能介绍",
+    Desc = "这是一个功能强大的Roblox脚本中心，提供多种实用工具和游戏辅助功能。",
+    Image = "https://c-ssl.duitang.com/uploads/blog/202310/21/oVS4gnBVIg4A1yJ.jpg",
+    ImageSize = 50,
+})
+
+Tabs.GongGao:Paragraph({
+    Title = "主要特性",
+    Desc = "• 多种游戏辅助功能\n• 简洁美观的界面设计\n• 稳定的性能表现\n• 持续更新和维护",
+    Thumbnail = "https://c-ssl.duitang.com/uploads/blog/202103/27/20210327131203_74b6b.jpg",
+    ThumbnailSize = 80,
+})
+
+Tabs.GongGao:Paragraph({
+    Title = "使用说明",
+    Desc = "1. 选择需要的功能标签页\n2. 开启或调整相应设置\n3. 享受更好的游戏体验\n4. 有问题请加QQ群反馈",
+})
+
+Tabs.GongGao:Paragraph({
+    Title = "注意事项",
+    Desc = "• 请合理使用脚本功能\n• 遵守游戏规则\n• 定期检查更新\n• 反馈问题到QQ群",
+})
+
+-- 通用功能
+local speed = 16
+local speedEnabled = false
+local gravity = 196.2
+local gravityEnabled = false
+local jumpPower = 50
+local jumpEnabled = false
+local noclipEnabled = false
+local autoAttackEnabled = false
+local autoAttackConnection = nil
+local healthValue = 100
+local healthEnabled = false
+
+-- 速度设置 - 改为滑块
+Tabs.ChangYong:Slider({
+    Title = "移速",
+    Desc = "设置移动速度",
+    Value = {
+        Min = 16,
+        Max = 500,
+        Default = 16,
+    },
+    Increment = 1,
+    Callback = function(value)
+        speed = value
+        if speedEnabled and game.Players.LocalPlayer.Character then
+            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = speed
+        end
+    end
+})
+
+Tabs.ChangYong:Toggle({
+    Title = "速度开关",
+    Value = false,
+    Callback = function(value)
+        speedEnabled = value
+        if value and game.Players.LocalPlayer.Character then
+            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = speed
+        elseif game.Players.LocalPlayer.Character then
+            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
+        end
+    end
+})
+
+-- 重力设置 - 改为滑块
+Tabs.ChangYong:Slider({
+    Title = "重力",
+    Desc = "设置世界重力",
+    Value = {
+        Min = 0.1,
+        Max = 500.0,
+        Default = 196.2,
+    },
+    Step = 0.1,
+    Callback = function(value)
+        gravity = value
+        if gravityEnabled then
+            game.Workspace.Gravity = gravity
+        end
+    end
+})
+
+Tabs.ChangYong:Toggle({
+    Title = "重力开关",
+    Value = false,
+    Callback = function(value)
+        gravityEnabled = value
+        if value then
+            game.Workspace.Gravity = gravity
+        else
+            game.Workspace.Gravity = 196.2
+        end
+    end
+})
+
+-- 跳跃设置
+Tabs.ChangYong:Input({
+    Title = "跳跃设置",
+    Default = "50",
+    PlaceholderText = "输入跳跃高度 (1-500)",
+    Callback = function(value)
+        local numValue = tonumber(value)
+        if numValue and numValue >= 1 and numValue <= 500 then
+            jumpPower = numValue
+            if jumpEnabled and game.Players.LocalPlayer.Character then
+                game.Players.LocalPlayer.Character.Humanoid.JumpPower = jumpPower
+            end
+        else
+            warn("请输入1-500之间的数字")
+        end
+    end
+})
+
+Tabs.ChangYong:Toggle({
+    Title = "跳跃开关",
+    Value = false,
+    Callback = function(value)
+        jumpEnabled = value
+        if value and game.Players.LocalPlayer.Character then
+            game.Players.LocalPlayer.Character.Humanoid.JumpPower = jumpPower
+        elseif game.Players.LocalPlayer.Character then
+            game.Players.LocalPlayer.Character.Humanoid.JumpPower = 50
+        end
+    end
+})
+
+-- 血量设置滑块
+Tabs.ChangYong:Slider({
+    Title = "修改血量",
+    Desc = "设置角色生命值",
+    Value = {
+        Min = 1,
+        Max = 100,
+        Default = 100,
+    },
+    Increment = 1,
+    Callback = function(value)
+        healthValue = value
+        if healthEnabled and game.Players.LocalPlayer.Character then
+            local humanoid = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.Health = healthValue
+            end
+        end
+    end
+})
+
+Tabs.ChangYong:Toggle({
+    Title = "血量开关",
+    Value = false,
+    Callback = function(value)
+        healthEnabled = value
+        if value and game.Players.LocalPlayer.Character then
+            local humanoid = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.Health = healthValue
+            end
+        end
+    end
+})
+
+-- 穿墙开关
+Tabs.ChangYong:Toggle({
+    Title = "穿墙开关",
+    Value = false,
+    Callback = function(value)
+        noclipEnabled = value
+        if value then
+            local connection
+            connection = game:GetService("RunService").Stepped:Connect(function()
+                if noclipEnabled and game.Players.LocalPlayer.Character then
+                    for _, part in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+            end)
+        end
+    end
+})
+
+-- 飞行功能
+Tabs.ChangYong:Button({
+    Title = "飞行",
+    Desc = "开启飞行模式",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Disegop/ai-yi-ling-du/refs/heads/main/FlyGuiV3.txt"))()
+    end
+})
+
+-- 飞车功能
+Tabs.ChangYong:Button({
+    Title = "飞车",
+    Desc = "开启车辆飞行模式",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Disegop/ai-yi-ling-du/refs/heads/main/VehicleFly.txt"))()
+    end
+})
+
+-- 自动攻击功能
+Tabs.ChangYong:Toggle({
+    Title = "自动攻击",
+    Desc = "拿起道具自动攻击点击",
+    Value = false,
+    Callback = function(value)
+        autoAttackEnabled = value
+        if value then
+            -- 开启自动攻击
+            autoAttackConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                if autoAttackEnabled then
+                    pcall(function()
+                        -- 检测玩家是否持有工具
+                        local character = game.Players.LocalPlayer.Character
+                        if character then
+                            local humanoid = character:FindFirstChildOfClass("Humanoid")
+                            local tool = character:FindFirstChildOfClass("Tool")
+                            
+                            if humanoid and tool then
+                                -- 模拟点击攻击
+                                tool:Activate()
+                            end
+                        end
+                    end)
+                end
+            end)
+        else
+            -- 关闭自动攻击
+            if autoAttackConnection then
+                autoAttackConnection:Disconnect()
+                autoAttackConnection = nil
+            end
+        end
+    end
+})
+
+-- 恢复所有设置
+Tabs.ChangYong:Button({
+    Title = "恢复所有设置",
+    Desc = "重置所有功能到默认状态",
+    Callback = function()
+        speedEnabled = false
+        gravityEnabled = false
+        jumpEnabled = false
+        noclipEnabled = false
+        autoAttackEnabled = false
+        healthEnabled = false
+        
+        if autoAttackConnection then
+            autoAttackConnection:Disconnect()
+            autoAttackConnection = nil
+        end
+        
+        if game.Players.LocalPlayer.Character then
+            local humanoid = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = 16
+                humanoid.JumpPower = 50
+                humanoid.Health = 100
+            end
+        end
+        
+        game.Workspace.Gravity = 196.2
+        
+        WindUI:Notify({
+            Title = "设置已重置",
+            Desc = "所有功能已恢复默认设置",
+            Icon = "check",
+            Duration = 3
+        })
+    end
+})
+
+-- ==================== 自瞄功能 ====================
+local aimbotEnabled = false
+local aimbotConnection = nil
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local lockedTarget = nil
+
+-- 自瞄设置
+local aimMode = 1 -- 1:人物转 2:视角转 3:都转
+local smoothness = 8 -- 平滑度 1-10
+local aimSpeed = 80 -- 速度 1-100
+
+-- 创建连接线
+local beam = Instance.new("Part")
+beam.Name = "AimbotBeam"
+beam.Size = Vector3.new(0.2, 0.2, 1)
+beam.Material = Enum.Material.Neon
+beam.BrickColor = BrickColor.new("Bright blue")
+beam.Anchored = true
+beam.CanCollide = false
+beam.Transparency = 0.3
+beam.Parent = workspace
+
+-- 获取最近玩家
+local function getPlayerList()
+    local playerList = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            table.insert(playerList, player.Name)
+        end
+    end
+    return playerList
+end
+
+-- 检查目标是否死亡
+local function checkTargetAlive()
+    if lockedTarget and lockedTarget.Character then
+        local humanoid = lockedTarget.Character:FindFirstChild("Humanoid")
+        if not humanoid or humanoid.Health <= 0 then
+            lockedTarget = nil
+        end
+    end
+end
+
+-- 更新连接线
+local function updateBeam(targetPosition, localPosition)
+    if not aimbotEnabled or not targetPosition then
+        beam.Transparency = 1
+        return
+    end
+    
+    local distance = (targetPosition - localPosition).Magnitude
+    local middle = (targetPosition + localPosition) / 2
+    
+    beam.Size = Vector3.new(0.2, 0.2, distance)
+    beam.CFrame = CFrame.lookAt(middle, targetPosition)
+    beam.Transparency = 0.3
+end
+
+-- 自瞄函数
+local function aimAtTarget()
+    if not aimbotEnabled then return end
+    
+    checkTargetAlive()
+    local targetPlayer = getClosestPlayer()
+    if not targetPlayer or not targetPlayer.Character then 
+        beam.Transparency = 1
+        return 
+    end
+    
+    local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local localRoot = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local camera = workspace.CurrentCamera
+    
+    if not targetRoot or not localRoot then return end
+    
+    -- 更新连接线
+    updateBeam(targetRoot.Position, localRoot.Position)
+    
+    -- 计算实际速度和平滑度（提高响应速度）
+    local actualSpeed = aimSpeed / 50  -- 提高速度系数
+    local actualSmoothness = smoothness / 5  -- 提高平滑度系数
+    
+    if aimMode == 1 then
+        -- 模式1: 人物转向敌人，视角不动
+        local lookVector = (targetRoot.Position - localRoot.Position).Unit
+        local targetCFrame = CFrame.lookAt(localRoot.Position, localRoot.Position + lookVector)
+        local smoothedCFrame = localRoot.CFrame:Lerp(targetCFrame, actualSmoothness * 0.3)
+        localRoot.CFrame = CFrame.new(smoothedCFrame.Position, targetRoot.Position)
+        
+    elseif aimMode == 2 then
+        -- 模式2: 视角转向敌人，人物不动
+        local targetCFrame = CFrame.lookAt(camera.CFrame.Position, targetRoot.Position)
+        local smoothedCFrame = camera.CFrame:Lerp(targetCFrame, actualSmoothness * 0.4)
+        camera.CFrame = smoothedCFrame
+        
+    elseif aimMode == 3 then
+        -- 模式3: 两个都转向敌人
+        local lookVector = (targetRoot.Position - localRoot.Position).Unit
+        local targetBodyCFrame = CFrame.lookAt(localRoot.Position, localRoot.Position + lookVector)
+        local smoothedBodyCFrame = localRoot.CFrame:Lerp(targetBodyCFrame, actualSmoothness * 0.3)
+        localRoot.CFrame = CFrame.new(smoothedBodyCFrame.Position, targetRoot.Position)
+        
+        local targetCameraCFrame = CFrame.lookAt(camera.CFrame.Position, targetRoot.Position)
+        local smoothedCameraCFrame = camera.CFrame:Lerp(targetCameraCFrame, actualSmoothness * 0.4)
+        camera.CFrame = smoothedCameraCFrame
+    end
+end
+
+-- 获取最近玩家（用于自瞄）
+local function getClosestPlayer()
+    if lockedTarget and lockedTarget.Character and lockedTarget.Character:FindFirstChild("Humanoid") and lockedTarget.Character.Humanoid.Health > 0 then
+        return lockedTarget
+    end
+    
+    local closestPlayer = nil
+    local closestDistance = 9999
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local character = player.Character
+            local humanoid = character:FindFirstChild("Humanoid")
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            
+            if humanoid and humanoid.Health > 0 and humanoidRootPart then
+                local distance = (humanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestPlayer = player
+                end
+            end
+        end
+    end
+    
+    if closestPlayer then
+        lockedTarget = closestPlayer
+    end
+    
+    return closestPlayer
+end
+
+-- 自瞄模式选择
+Tabs.ZiMiao:Dropdown({
+    Title = "自瞄模式",
+    Desc = "选择自瞄的工作方式",
+    Values = {
+        "人物转向敌人，视角不动",
+        "视角转向敌人，人物不动", 
+        "两个都转向敌人"
+    },
+    Value = "人物转向敌人，视角不动",
+    Callback = function(value)
+        if value == "人物转向敌人，视角不动" then
+            aimMode = 1
+        elseif value == "视角转向敌人，人物不动" then
+            aimMode = 2
+        else
+            aimMode = 3
+        end
+    end
+})
+
+-- 平滑度设置
+Tabs.ZiMiao:Slider({
+    Title = "平滑度",
+    Desc = "控制转向的流畅程度",
+    Value = {
+        Min = 1,
+        Max = 10,
+        Default = 8,
+    },
+    Increment = 1,
+    Callback = function(value)
+        smoothness = value
+    end
+})
+
+-- 速度设置
+Tabs.ZiMiao:Slider({
+    Title = "速度",
+    Desc = "控制转向的速度",
+    Value = {
+        Min = 1,
+        Max = 100,
+        Default = 80,
+    },
+    Increment = 1,
+    Callback = function(value)
+        aimSpeed = value
+    end
+})
+
+-- 切换目标按钮
+Tabs.ZiMiao:Button({
+    Title = "切换目标",
+    Desc = "手动切换到另一个敌人",
+    Callback = function()
+        lockedTarget = nil
+    end
+})
+
+-- 自瞄主开关
+Tabs.ZiMiao:Toggle({
+    Title = "自瞄开关",
+    Desc = "开启/关闭自瞄功能",
+    Value = false,
+    Callback = function(value)
+        if value then
+            aimbotEnabled = true
+            lockedTarget = nil
+            aimbotConnection = RunService.Heartbeat:Connect(aimAtTarget)
+        else
+            aimbotEnabled = false
+            lockedTarget = nil
+            if aimbotConnection then
+                aimbotConnection:Disconnect()
+                aimbotConnection = nil
+            end
+            beam.Transparency = 1
+        end
+    end
+})
+
+-- ==================== 环绕功能 ====================
+local orbitEnabled = false
+local orbitConnection = nil
+local orbitTarget = nil
+local orbitAngle = 0
+
+-- 环绕设置
+local orbitRadius = 5    -- 环绕半径
+local orbitSpeed = 5     -- 环绕速度
+local orbitHeight = 3    -- 环绕高度
+local orbitMode = 1      -- 1:水平环绕 2:垂直环绕 3:螺旋环绕
+
+-- 环绕函数
+local function orbitAroundTarget()
+    if not orbitEnabled or not orbitTarget then return end
+    
+    local targetCharacter = orbitTarget.Character
+    local localCharacter = game.Players.LocalPlayer.Character
+    
+    if not targetCharacter or not localCharacter then return end
+    
+    local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
+    local localRoot = localCharacter:FindFirstChild("HumanoidRootPart")
+    
+    if not targetRoot or not localRoot then return end
+    
+    -- 更新角度
+    orbitAngle = orbitAngle + orbitSpeed * 0.1
+    
+    local targetPosition = targetRoot.Position
+    local newPosition
+    
+    if orbitMode == 1 then
+        -- 水平环绕
+        newPosition = Vector3.new(
+            targetPosition.X + math.cos(orbitAngle) * orbitRadius,
+            targetPosition.Y + orbitHeight,
+            targetPosition.Z + math.sin(orbitAngle) * orbitRadius
+        )
+    elseif orbitMode == 2 then
+        -- 垂直环绕
+        newPosition = Vector3.new(
+            targetPosition.X,
+            targetPosition.Y + math.sin(orbitAngle) * orbitRadius + orbitHeight,
+            targetPosition.Z + math.cos(orbitAngle) * orbitRadius
+        )
+    elseif orbitMode == 3 then
+        -- 螺旋环绕
+        newPosition = Vector3.new(
+            targetPosition.X + math.cos(orbitAngle) * orbitRadius,
+            targetPosition.Y + math.sin(orbitAngle) * orbitRadius * 0.5 + orbitHeight,
+            targetPosition.Z + math.sin(orbitAngle) * orbitRadius
+        )
+    end
+    
+    -- 应用位置
+    localRoot.CFrame = CFrame.new(newPosition, targetPosition)
+end
+
+-- 开始环绕
+local function startOrbit()
+    if orbitConnection then
+        orbitConnection:Disconnect()
+        orbitConnection = nil
+    end
+    
+    orbitConnection = game:GetService("RunService").Heartbeat:Connect(function()
+        orbitAroundTarget()
+    end)
+end
+
+-- 停止环绕
+local function stopOrbit()
+    if orbitConnection then
+        orbitConnection:Disconnect()
+        orbitConnection = nil
+    end
+end
+
+-- 环绕目标选择
+Tabs.HuanRao:Dropdown({
+    Title = "选择环绕目标",
+    Desc = "选择要环绕的玩家",
+    Values = getPlayerList(),
+    Value = "",
+    Callback = function(selectedName)
+        for _, player in pairs(game.Players:GetPlayers()) do
+            if player.Name == selectedName then
+                orbitTarget = player
+                WindUI:Notify({
+                    Title = "环绕目标已选择",
+                    Desc = "将环绕: " .. selectedName,
+                    Duration = 2
+                })
+                break
+            end
+        end
+    end
+})
+
+-- 环绕模式选择
+Tabs.HuanRao:Dropdown({
+    Title = "环绕模式",
+    Desc = "选择环绕的方式",
+    Values = {"水平环绕", "垂直环绕", "螺旋环绕"},
+    Value = "水平环绕",
+    Callback = function(value)
+        if value == "水平环绕" then
+            orbitMode = 1
+        elseif value == "垂直环绕" then
+            orbitMode = 2
+        else
+            orbitMode = 3
+        end
+    end
+})
+
+-- 环绕半径设置
+Tabs.HuanRao:Slider({
+    Title = "环绕半径",
+    Desc = "控制环绕的距离",
+    Value = {
+        Min = 2,
+        Max = 20,
+        Default = 5,
+    },
+    Increment = 1,
+    Callback = function(value)
+        orbitRadius = value
+    end
+})
+
+-- 环绕速度设置
+Tabs.HuanRao:Slider({
+    Title = "环绕速度",
+    Desc = "控制环绕的快慢",
+    Value = {
+        Min = 1,
+        Max = 20,
+        Default = 5,
+    },
+    Increment = 1,
+    Callback = function(value)
+        orbitSpeed = value
+    end
+})
+
+-- 环绕高度设置
+Tabs.HuanRao:Slider({
+    Title = "环绕高度",
+    Desc = "控制环绕的高度",
+    Value = {
+        Min = 0,
+        Max = 10,
+        Default = 3,
+    },
+    Increment = 1,
+    Callback = function(value)
+        orbitHeight = value
+    end
+})
+
+-- 环绕开关
+Tabs.HuanRao:Toggle({
+    Title = "环绕开关",
+    Desc = "开始/停止环绕目标",
+    Value = false,
+    Callback = function(value)
+        orbitEnabled = value
+        if value then
+            if orbitTarget then
+                startOrbit()
+                WindUI:Notify({
+                    Title = "环绕开始",
+                    Desc = "正在环绕: " .. orbitTarget.Name,
+                    Duration = 3
+                })
+            else
+                WindUI:Notify({
+                    Title = "错误",
+                    Desc = "请先选择环绕目标",
+                    Duration = 2
+                })
+            end
+        else
+            stopOrbit()
+            WindUI:Notify({
+                Title = "环绕停止",
+                Desc = "环绕功能已关闭",
+                Duration = 2
+            })
+        end
+    end
+})
+
+-- ==================== 传送功能 ====================
+-- 传送功能变量
+local teleportEnabled = false
+local selectedPlayer = nil
+local originalPosition = nil
+local teleportLoop = nil
+
+-- 传送到特定玩家背后
+local function teleportToPlayer(player)
+    if not player or not player.Character then return false end
+    
+    local targetCharacter = player.Character
+    local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
+    local localCharacter = LocalPlayer.Character
+    local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
+    
+    if targetRoot and localRoot then
+        local behindCFrame = targetRoot.CFrame * CFrame.new(0, 0, 3)
+        localRoot.CFrame = behindCFrame
+        return true
+    end
+    return false
+end
+
+-- 开始传送到选定玩家
+local function startSelectedPlayerTeleport()
+    if not selectedPlayer then
+        WindUI:Notify({
+            Title = "传送失败",
+            Desc = "请先选择要传送的玩家！",
+            Duration = 5
+        })
+        return
+    end
+    
+    -- 保存当前位置
+    local character = LocalPlayer.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        originalPosition = character.HumanoidRootPart.CFrame
+    end
+    
+    teleportEnabled = true
+    if teleportLoop then 
+        teleportLoop:Disconnect()
+        teleportLoop = nil
+    end
+    
+    teleportLoop = RunService.Heartbeat:Connect(function()
+        if not teleportEnabled or not selectedPlayer then 
+            if teleportLoop then
+                teleportLoop:Disconnect()
+                teleportLoop = nil
+            end
+            return 
+        end
+        
+        local success = teleportToPlayer(selectedPlayer)
+        if not success then
+            WindUI:Notify({
+                Title = "传送中断",
+                Desc = "目标玩家不存在或无法传送",
+                Duration = 5
+            })
+            stopTeleportLoop()
+        end
+        
+        task.wait(0.1)
+    end)
+    
+    WindUI:Notify({
+        Title = "传送已启动",
+        Desc = "正在传送到: " .. selectedPlayer.Name,
+        Duration = 5
+    })
+end
+
+-- 停止传送
+local function stopTeleportLoop()
+    teleportEnabled = false
+    if teleportLoop then 
+        teleportLoop:Disconnect()
+        teleportLoop = nil
+    end
+    
+    -- 传送回原始位置
+    if originalPosition then
+        local character = LocalPlayer.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            character.HumanoidRootPart.CFrame = originalPosition
+            WindUI:Notify({
+                Title = "已返回",
+                Desc = "传送回原始位置",
+                Duration = 3
+            })
+        end
+        originalPosition = nil
+    end
+end
+
+-- 玩家选择下拉框
+Tabs.ChuanSong:Dropdown({
+    Title = "选择传送目标",
+    Desc = "选择要传送的玩家",
+    Values = getPlayerList(),
+    Value = "",
+    Callback = function(selectedName)
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player.Name == selectedName then
+                selectedPlayer = player
+                WindUI:Notify({
+                    Title = "目标已选择",
+                    Desc = "已选择玩家: " .. selectedName,
+                    Duration = 3
+                })
+                break
+            end
+        end
+    end
+})
+
+-- 刷新玩家列表按钮
+Tabs.ChuanSong:Button({
+    Title = "刷新玩家列表",
+    Desc = "更新在线玩家列表",
+    Callback = function()
+        local playerList = getPlayerList()
+        WindUI:Notify({
+            Title = "列表已刷新",
+            Desc = "玩家列表已更新，当前在线: " .. #playerList .. "人",
+            Duration = 3
+        })
+    end
+})
+
+-- 单个玩家传送开关
+Tabs.ChuanSong:Toggle({
+    Title = "传送到选定玩家",
+    Desc = "持续传送到选择的玩家背后",
+    Value = false,
+    Callback = function(value)
+        if value then
+            startSelectedPlayerTeleport()
+        else
+            stopTeleportLoop()
+        end
+    end
+})
+
+-- 快速传送到选定玩家（单次）
+Tabs.ChuanSong:Button({
+    Title = "快速传送",
+    Desc = "单次传送到选定玩家",
+    Callback = function()
+        if not selectedPlayer then
+            WindUI:Notify({
+                Title = "传送失败",
+                Desc = "请先选择要传送的玩家！",
+                Duration = 5
+            })
+            return
+        end
+        
+        local success = teleportToPlayer(selectedPlayer)
+        if success then
+            WindUI:Notify({
+                Title = "传送成功",
+                Desc = "已传送到: " .. selectedPlayer.Name,
+                Duration = 3
+            })
+        else
+            WindUI:Notify({
+                Title = "传送失败",
+                Desc = "无法传送到目标玩家",
+                Duration = 5
+            })
+        end
+    end
+})
+
+-- 玩家离开自动更新
+Players.PlayerRemoving:Connect(function(player)
+    if player == selectedPlayer then
+        selectedPlayer = nil
+        if teleportEnabled then
+            stopTeleportLoop()
+        end
+        WindUI:Notify({
+            Title = "目标玩家离开",
+            Desc = player.Name .. " 已离开游戏，传送已停止",
+            Duration = 5
+        })
+    end
+end)
+
+-- ==================== 恶搞漏洞分区 ====================
+Tabs.EGaO:Button({
+    Title = "导管",
+    Desc = "点击执行神秘脚本",
+    Callback = function()
+        loadstring(game:HttpGet("https://pastefy.app/YZoglOyJ/raw"))()
+    end
+})
+
+Tabs.EGaO:Button({
+    Title = "获取管理员后台(伪名伪皮)",
+    Desc = "点击获取管理员权限",
+    Callback = function()
+        loadstring(game:HttpGet("https://pastebin.com/raw/sZpgTVas"))()
+    end
+})
+
+-- ==================== 美化区 ====================
+Tabs.MeiHua:Button({
+    Title = "聊天框美化",
+    Desc = "美化游戏聊天框",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ke9460394-dot/ugik/refs/heads/main/4M1NrMnc.txt"))()
+    end
+})
+
+-- 最终光影按钮
+Tabs.MeiHua:Button({
+    Title = "最终光影",
+    Desc = "需要加载一会，耐心等待，就像吃方便面一样",
+    Callback = function()
+        WindUI:Notify({
+            Title = "正在加载光影",
+            Desc = "需要加载一会 ᯠ  _   ̫  _ ̥ ᯄ ੭",
+            Duration = 5
+        })
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/randomstring0/pshade-ultimate/refs/heads/main/src/cd.lua'))()
+    end
+})
+
+-- 清理函数
+game:GetService("Players").PlayerRemoving:Connect(function(player)
+    if player == LocalPlayer then
+        -- 清理自瞄
+        if aimbotConnection then
+            aimbotConnection:Disconnect()
+        end
+        if beam then
+            beam:Destroy()
+        end
+        
+        -- 清理环绕
+        if orbitConnection then
+            orbitConnection:Disconnect()
+        end
+        
+        -- 清理传送
+        if teleportLoop then
+            teleportLoop:Disconnect()
+        end
+    elseif player == lockedTarget then
+        lockedTarget = nil
+    elseif player == selectedPlayer then
+        selectedPlayer = nil
+    elseif player == orbitTarget then
+        orbitTarget = nil
+    end
+end)
