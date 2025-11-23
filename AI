@@ -1,0 +1,892 @@
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local API_KEY = "sk-aa4018ed6a5745dc844fd78ef81a1c09"
+local MODEL = "deepseek-chat"
+
+-- 清理旧UI
+local old = PlayerGui:FindFirstChild("LoveLingduAI_ChatUI")
+if old then old:Destroy() end
+
+-- 创建主UI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "LoveLingduAI_ChatUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = PlayerGui
+
+-- 窗口尺寸配置 - 更横更小
+local WINDOW_WIDTH = 500  -- 更宽
+local WINDOW_HEIGHT = 280 -- 更矮
+
+-- 动画控制变量
+local isAnimating = false
+local currentTween = nil
+local uihide = true
+
+-- 创建可拖动打开按钮
+local openButton = Instance.new("ImageButton")
+openButton.Parent = screenGui
+openButton.BackgroundColor3 = Color3.fromRGB(80, 120, 220)
+openButton.BackgroundTransparency = 0.2
+openButton.Position = UDim2.new(0.9, -25, 0.4, -25) -- 更靠右
+openButton.Size = UDim2.new(0, 45, 0, 45) -- 更小
+openButton.Image = "rbxassetid://91216633901705"
+openButton.Draggable = true
+
+local buttonCorner = Instance.new("UICorner", openButton)
+buttonCorner.CornerRadius = UDim.new(1, 0)
+
+local buttonStroke = Instance.new("UIStroke", openButton)
+buttonStroke.Color = Color3.fromRGB(255, 255, 255)
+buttonStroke.Thickness = 2
+buttonStroke.Transparency = 0.3
+
+-- 主容器 - 更横更小
+local mainContainer = Instance.new("Frame")
+mainContainer.AnchorPoint = Vector2.new(0.5, 0.5)
+mainContainer.Size = UDim2.new(0, 0, 0, 0)
+mainContainer.Position = UDim2.new(0.5, 0, 0.4, 0)
+mainContainer.BackgroundColor3 = Color3.fromRGB(245, 248, 255)
+mainContainer.Active = false
+mainContainer.Draggable = false
+mainContainer.Visible = false
+mainContainer.ClipsDescendants = true
+mainContainer.Parent = screenGui
+
+local containerCorner = Instance.new("UICorner", mainContainer)
+containerCorner.CornerRadius = UDim.new(0, 12)
+
+local containerStroke = Instance.new("UIStroke", mainContainer)
+containerStroke.Color = Color3.fromRGB(200, 210, 230)
+containerStroke.Thickness = 1.5
+
+-- 拖拽区域
+local dragFrame = Instance.new("Frame", mainContainer)
+dragFrame.Size = UDim2.new(1, 0, 0, 35)
+dragFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+dragFrame.BackgroundTransparency = 1
+dragFrame.ZIndex = 5
+
+-- 侧边栏 - 更紧凑
+local sidebar = Instance.new("Frame", mainContainer)
+sidebar.Size = UDim2.new(0, 100, 1, -15) -- 更窄
+sidebar.Position = UDim2.new(0, 8, 0, 8)
+sidebar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+sidebar.BorderSizePixel = 0
+Instance.new("UICorner", sidebar).CornerRadius = UDim.new(0, 10)
+
+local sidebarStroke = Instance.new("UIStroke", sidebar)
+sidebarStroke.Color = Color3.fromRGB(220, 225, 240)
+sidebarStroke.Thickness = 1
+
+-- 侧边栏按钮 - 更紧凑
+local newChatBtn = Instance.new("TextButton", sidebar)
+newChatBtn.Size = UDim2.new(1, -16, 0, 28)
+newChatBtn.Position = UDim2.new(0, 8, 0, 12)
+newChatBtn.Text = "新建对话"
+newChatBtn.Font = Enum.Font.Gotham
+newChatBtn.TextSize = 12
+newChatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+newChatBtn.BackgroundColor3 = Color3.fromRGB(80, 120, 220)
+Instance.new("UICorner", newChatBtn).CornerRadius = UDim.new(0, 6)
+
+local clearBtn = Instance.new("TextButton", sidebar)
+clearBtn.Size = UDim2.new(1, -16, 0, 28)
+clearBtn.Position = UDim2.new(0, 8, 0, 46)
+clearBtn.Text = "清空对话"
+clearBtn.Font = Enum.Font.Gotham
+clearBtn.TextSize = 12
+clearBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+clearBtn.BackgroundColor3 = Color3.fromRGB(100, 140, 230)
+Instance.new("UICorner", clearBtn).CornerRadius = UDim.new(0, 6)
+
+local settingsBtn = Instance.new("TextButton", sidebar)
+settingsBtn.Size = UDim2.new(1, -16, 0, 28)
+settingsBtn.Position = UDim2.new(0, 8, 0, 80)
+settingsBtn.Text = "性格设置"
+settingsBtn.Font = Enum.Font.Gotham
+settingsBtn.TextSize = 12
+settingsBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+settingsBtn.BackgroundColor3 = Color3.fromRGB(120, 160, 240)
+Instance.new("UICorner", settingsBtn).CornerRadius = UDim.new(0, 6)
+
+-- 标题栏 - 更紧凑
+local titleBar = Instance.new("Frame", mainContainer)
+titleBar.Size = UDim2.new(1, -116, 0, 35)
+titleBar.Position = UDim2.new(0, 108, 0, 8)
+titleBar.BackgroundColor3 = Color3.fromRGB(235, 240, 255)
+titleBar.BorderSizePixel = 0
+Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 10)
+
+local titleLabel = Instance.new("TextLabel", titleBar)
+titleLabel.Size = UDim2.new(0, 100, 1, 0)
+titleLabel.Position = UDim2.new(0, 12, 0, 0)
+titleLabel.Text = "Love Lingdu"
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 14
+titleLabel.TextColor3 = Color3.fromRGB(70, 100, 180)
+titleLabel.BackgroundTransparency = 1
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- 控制按钮 - 更小
+local minimizeBtn = Instance.new("TextButton", titleBar)
+minimizeBtn.Size = UDim2.new(0, 20, 0, 20)
+minimizeBtn.Position = UDim2.new(1, -50, 0.5, -10)
+minimizeBtn.Text = "−"
+minimizeBtn.Font = Enum.Font.GothamBold
+minimizeBtn.TextSize = 14
+minimizeBtn.TextColor3 = Color3.fromRGB(100, 130, 200)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(245, 248, 255)
+minimizeBtn.AutoButtonColor = false
+Instance.new("UICorner", minimizeBtn).CornerRadius = UDim.new(1, 0)
+
+local closeBtn = Instance.new("TextButton", titleBar)
+closeBtn.Size = UDim2.new(0, 20, 0, 20)
+closeBtn.Position = UDim2.new(1, -25, 0.5, -10)
+closeBtn.Text = "×"
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 16
+closeBtn.TextColor3 = Color3.fromRGB(100, 130, 200)
+closeBtn.BackgroundColor3 = Color3.fromRGB(245, 248, 255)
+closeBtn.AutoButtonColor = false
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
+
+-- 聊天区域 - 更横
+local chatArea = Instance.new("Frame", mainContainer)
+chatArea.Size = UDim2.new(1, -116, 1, -88)
+chatArea.Position = UDim2.new(0, 108, 0, 48)
+chatArea.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+chatArea.BorderSizePixel = 0
+Instance.new("UICorner", chatArea).CornerRadius = UDim.new(0, 10)
+
+local chatScroll = Instance.new("ScrollingFrame", chatArea)
+chatScroll.Size = UDim2.new(1, -8, 1, -8)
+chatScroll.Position = UDim2.new(0, 4, 0, 4)
+chatScroll.BackgroundTransparency = 1
+chatScroll.BorderSizePixel = 0
+chatScroll.ScrollBarThickness = 4
+chatScroll.ScrollBarImageColor3 = Color3.fromRGB(200, 210, 230)
+chatScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+chatScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+chatScroll.VerticalScrollBarInset = Enum.ScrollBarInset.Always
+
+local chatLayout = Instance.new("UIListLayout", chatScroll)
+chatLayout.Padding = UDim.new(0, 6)
+chatLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- 自动滚动到底部
+chatLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    chatScroll.CanvasSize = UDim2.new(0, 0, 0, chatLayout.AbsoluteContentSize.Y)
+    -- 修复：自动滚动到底部
+    if chatScroll.CanvasSize.Y.Offset > chatScroll.AbsoluteWindowSize.Y then
+        chatScroll.CanvasPosition = Vector2.new(0, chatScroll.CanvasSize.Y.Offset - chatScroll.AbsoluteWindowSize.Y)
+    end
+end)
+
+-- 输入区域 - 更紧凑
+local inputArea = Instance.new("Frame", mainContainer)
+inputArea.Size = UDim2.new(1, -116, 0, 38)
+inputArea.Position = UDim2.new(0, 108, 1, -42)
+inputArea.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+inputArea.BorderSizePixel = 0
+Instance.new("UICorner", inputArea).CornerRadius = UDim.new(0, 8)
+
+local inputStroke = Instance.new("UIStroke", inputArea)
+inputStroke.Color = Color3.fromRGB(220, 225, 240)
+inputStroke.Thickness = 1
+
+local inputBox = Instance.new("TextBox", inputArea)
+inputBox.Size = UDim2.new(1, -46, 1, -8)
+inputBox.Position = UDim2.new(0, 8, 0, 4)
+inputBox.PlaceholderText = "请输入文本…"
+inputBox.Text = ""
+inputBox.TextSize = 13
+inputBox.ClearTextOnFocus = false
+inputBox.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+inputBox.TextColor3 = Color3.fromRGB(60, 70, 100)
+inputBox.PlaceholderColor3 = Color3.fromRGB(160, 170, 190)
+Instance.new("UICorner", inputBox).CornerRadius = UDim.new(0, 6)
+
+local sendBtn = Instance.new("TextButton", inputArea)
+sendBtn.Size = UDim2.new(0, 32, 0, 32)
+sendBtn.Position = UDim2.new(1, -36, 0.5, -16)
+sendBtn.Text = "↑"
+sendBtn.Font = Enum.Font.GothamBold
+sendBtn.TextSize = 14
+sendBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+sendBtn.BackgroundColor3 = Color3.fromRGB(80, 120, 220)
+sendBtn.AutoButtonColor = false
+Instance.new("UICorner", sendBtn).CornerRadius = UDim.new(1, 0)
+
+-- 设置面板
+local settingsPanel = Instance.new("Frame", mainContainer)
+settingsPanel.Size = UDim2.new(1, -116, 1, -88)
+settingsPanel.Position = UDim2.new(0, 108, 0, 48)
+settingsPanel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+settingsPanel.BorderSizePixel = 0
+settingsPanel.Visible = false
+settingsPanel.BackgroundTransparency = 1
+Instance.new("UICorner", settingsPanel).CornerRadius = UDim.new(0, 10)
+
+local settingsTitle = Instance.new("TextLabel", settingsPanel)
+settingsTitle.Size = UDim2.new(1, -20, 0, 25)
+settingsTitle.Position = UDim2.new(0, 10, 0, 8)
+settingsTitle.Text = "个性设置"
+settingsTitle.Font = Enum.Font.GothamBold
+settingsTitle.TextSize = 14
+settingsTitle.TextColor3 = Color3.fromRGB(70, 100, 180)
+settingsTitle.BackgroundTransparency = 1
+settingsTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local personaBox = Instance.new("TextBox", settingsPanel)
+personaBox.Size = UDim2.new(1, -20, 1, -70)
+personaBox.Position = UDim2.new(0, 10, 0, 40)
+personaBox.Text = "你是Love Lingdu，一个roblox游戏助手，性格开朗"
+personaBox.TextWrapped = true
+personaBox.TextSize = 12
+personaBox.ClearTextOnFocus = false
+personaBox.BackgroundColor3 = Color3.fromRGB(248, 250, 255)
+personaBox.TextColor3 = Color3.fromRGB(60, 70, 100)
+personaBox.PlaceholderText = "描述AI的性格..."
+Instance.new("UICorner", personaBox).CornerRadius = UDim.new(0, 6)
+
+local applyBtn = Instance.new("TextButton", settingsPanel)
+applyBtn.Size = UDim2.new(0, 80, 0, 28)
+applyBtn.Position = UDim2.new(1, -90, 1, -35)
+applyBtn.Text = "应用"
+applyBtn.Font = Enum.Font.Gotham
+applyBtn.TextSize = 12
+applyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+applyBtn.BackgroundColor3 = Color3.fromRGB(80, 120, 220)
+Instance.new("UICorner", applyBtn).CornerRadius = UDim.new(0, 6)
+
+-- ============ 改进的粒子效果系统 ============
+
+-- 创建更大的粒子效果
+local function createParticleEffect(parent, position, color)
+    local particleContainer = Instance.new("Frame")
+    particleContainer.BackgroundTransparency = 1
+    particleContainer.Size = UDim2.new(0, 120, 0, 120)
+    particleContainer.Position = position - UDim2.new(0, 60, 0, 60)
+    particleContainer.Parent = parent
+    particleContainer.ZIndex = 10
+    
+    local particles = {}
+    
+    -- 创建更多更大的粒子
+    for i = 1, 12 do
+        local particle = Instance.new("Frame")
+        particle.Size = UDim2.new(0, 8, 0, 8) -- 更大的粒子
+        particle.BackgroundColor3 = color
+        particle.BorderSizePixel = 0
+        particle.Position = UDim2.new(0.5, -4, 0.5, -4)
+        particle.Parent = particleContainer
+        
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(1, 0)
+        corner.Parent = particle
+        
+        -- 计算粒子方向
+        local angle = (i / 12) * 2 * math.pi
+        local distance = 40 -- 更远的距离
+        
+        -- 粒子动画
+        local targetPosition = UDim2.new(
+            0.5, math.cos(angle) * distance - 4,
+            0.5, math.sin(angle) * distance - 4
+        )
+        
+        local tween = TweenService:Create(particle, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = targetPosition,
+            BackgroundTransparency = 1,
+            Size = UDim2.new(0, 0, 0, 0)
+        })
+        tween:Play()
+        
+        table.insert(particles, particle)
+    end
+    
+    -- 清理粒子
+    delay(0.9, function()
+        particleContainer:Destroy()
+    end)
+end
+
+-- 为按钮添加粒子效果
+local function addParticleEffectToButton(button, color)
+    button.MouseButton1Click:Connect(function()
+        local absolutePosition = button.AbsolutePosition
+        local absoluteSize = button.AbsoluteSize
+        local centerPosition = UDim2.new(
+            0, absolutePosition.X + absoluteSize.X / 2,
+            0, absolutePosition.Y + absoluteSize.Y / 2
+        )
+        createParticleEffect(screenGui, centerPosition, color)
+    end)
+end
+
+-- ============ 动画系统 ============
+
+-- 拖拽功能
+local function MakeDraggable(topbarobject, object)
+    local Dragging = nil
+    local DragInput = nil
+    local DragStart = nil
+    local StartPosition = nil
+
+    local function Update(input)
+        local Delta = input.Position - DragStart
+        local pos = UDim2.new(
+            StartPosition.X.Scale,
+            StartPosition.X.Offset + Delta.X,
+            StartPosition.Y.Scale,
+            StartPosition.Y.Offset + Delta.Y
+        )
+        object.Position = pos
+    end
+
+    topbarobject.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            Dragging = true
+            DragStart = input.Position
+            StartPosition = object.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    Dragging = false
+                end
+            end)
+        end
+    end)
+
+    topbarobject.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            DragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == DragInput and Dragging then
+            Update(input)
+        end
+    end)
+end
+
+MakeDraggable(dragFrame, mainContainer)
+
+-- 打开动画
+local function openUI()
+    if isAnimating then return end
+    
+    isAnimating = true
+    uihide = false
+    
+    mainContainer.Position = UDim2.new(0.5, 0, 0.4, 0)
+    mainContainer.AnchorPoint = Vector2.new(0.5, 0.5)
+    
+    mainContainer.Visible = true
+    mainContainer.BackgroundTransparency = 1
+    mainContainer.Size = UDim2.new(0, 0, 0, 0)
+    
+    local scaleTween = TweenService:Create(mainContainer, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, WINDOW_WIDTH + 20, 0, WINDOW_HEIGHT + 20)
+    })
+    scaleTween:Play()
+    
+    scaleTween.Completed:Connect(function()
+        local shrinkTween = TweenService:Create(mainContainer, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, WINDOW_WIDTH, 0, WINDOW_HEIGHT)
+        })
+        shrinkTween:Play()
+        
+        local fadeTween = TweenService:Create(mainContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundTransparency = 0
+        })
+        fadeTween:Play()
+        
+        fadeTween.Completed:Connect(function()
+            isAnimating = false
+        end)
+    end)
+end
+
+-- 关闭动画
+local function closeUI()
+    if isAnimating then return end
+    
+    isAnimating = true
+    uihide = true
+    
+    local fadeTween = TweenService:Create(mainContainer, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        BackgroundTransparency = 1
+    })
+    fadeTween:Play()
+    
+    fadeTween.Completed:Connect(function()
+        local scaleTween = TweenService:Create(mainContainer, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, 0, 0, 0)
+        })
+        scaleTween:Play()
+        
+        scaleTween.Completed:Connect(function()
+            mainContainer.Visible = false
+            isAnimating = false
+        end)
+    end)
+end
+
+-- 切换UI显示/隐藏
+local function toggleUI()
+    if uihide then
+        openUI()
+    else
+        closeUI()
+    end
+end
+
+-- 圆形按钮动画效果 - 确保旋转一圈
+local function addCircleButtonAnimation(button)
+    local originalRotation = button.Rotation
+    
+    button.MouseButton1Down:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 40, 0, 40)
+        }):Play()
+    end)
+    
+    button.MouseButton1Up:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 45, 0, 45)
+        }):Play()
+        
+        -- 确保旋转360度
+        button.Rotation = originalRotation
+        TweenService:Create(button, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Rotation = originalRotation + 360
+        }):Play()
+        
+        -- 脉动效果
+        TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundTransparency = 0
+        }):Play()
+        
+        TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.2), {
+            BackgroundTransparency = 0.2
+        }):Play()
+    end)
+end
+
+-- 为打开按钮添加动画
+addCircleButtonAnimation(openButton)
+
+-- 按钮脉动动画
+local function addPulseAnimation(button)
+    local pulseTween = TweenService:Create(button, TweenInfo.new(2, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut, -1), {
+        BackgroundTransparency = 0.1,
+        Rotation = 5
+    })
+    pulseTween:Play()
+end
+
+addPulseAnimation(openButton)
+
+-- ============ 聊天逻辑 ============
+local currentHistory = {}
+local persona = personaBox.Text
+local isSettingsVisible = false
+local busy = false
+
+-- 获取玩家真实头像
+local function getPlayerAvatar()
+    local avatarFrame = Instance.new("Frame")
+    avatarFrame.Size = UDim2.new(0, 28, 0, 28) -- 更小
+    avatarFrame.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
+    Instance.new("UICorner", avatarFrame).CornerRadius = UDim.new(1, 0)
+    
+    local success, result = pcall(function()
+        local userId = LocalPlayer.UserId
+        local thumbType = Enum.ThumbnailType.HeadShot
+        local thumbSize = Enum.ThumbnailSize.Size100x100
+        return Players:GetUserThumbnailAsync(userId, thumbType, thumbSize)
+    end)
+    
+    if success then
+        local imageLabel = Instance.new("ImageLabel", avatarFrame)
+        imageLabel.Size = UDim2.new(1, 0, 1, 0)
+        imageLabel.Image = result
+        imageLabel.BackgroundTransparency = 1
+        Instance.new("UICorner", imageLabel).CornerRadius = UDim.new(1, 0)
+    else
+        local avatarLabel = Instance.new("TextLabel", avatarFrame)
+        avatarLabel.Size = UDim2.new(1, 0, 1, 0)
+        avatarLabel.Text = string.sub(LocalPlayer.Name, 1, 1)
+        avatarLabel.Font = Enum.Font.GothamBold
+        avatarLabel.TextSize = 10
+        avatarLabel.TextColor3 = Color3.fromRGB(80, 120, 220)
+        avatarLabel.BackgroundTransparency = 1
+    end
+    
+    return avatarFrame
+end
+
+-- 创建AI头像
+local function createAIAvatar()
+    local avatarFrame = Instance.new("Frame")
+    avatarFrame.Size = UDim2.new(0, 28, 0, 28)
+    avatarFrame.BackgroundColor3 = Color3.fromRGB(180, 200, 255)
+    Instance.new("UICorner", avatarFrame).CornerRadius = UDim.new(1, 0)
+    
+    local avatarLabel = Instance.new("TextLabel", avatarFrame)
+    avatarLabel.Size = UDim2.new(1, 0, 1, 0)
+    avatarLabel.Text = "LU"
+    avatarLabel.Font = Enum.Font.GothamBold
+    avatarLabel.TextSize = 10
+    avatarLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    avatarLabel.BackgroundTransparency = 1
+    
+    return avatarFrame
+end
+
+-- 长按复制功能
+local function setupLongPressCopy(bubble, messageText)
+    local pressStartTime = 0
+    local isPressing = false
+    local pressConnection
+    
+    -- 创建复制提示标签
+    local copyHint = Instance.new("TextLabel")
+    copyHint.Size = UDim2.new(1, 0, 0, 16)
+    copyHint.Position = UDim2.new(0, 0, 1, 2)
+    copyHint.Text = "长按复制"
+    copyHint.TextSize = 10
+    copyHint.TextColor3 = Color3.fromRGB(150, 150, 150)
+    copyHint.BackgroundTransparency = 1
+    copyHint.Visible = false
+    copyHint.Parent = bubble
+    
+    -- 创建"已复制"提示
+    local copiedLabel = Instance.new("TextLabel")
+    copiedLabel.Size = UDim2.new(1, 0, 0, 16)
+    copiedLabel.Position = UDim2.new(0, 0, 1, 2)
+    copiedLabel.Text = "已复制!"
+    copiedLabel.TextSize = 10
+    copiedLabel.TextColor3 = Color3.fromRGB(80, 120, 220)
+    copiedLabel.BackgroundTransparency = 1
+    copiedLabel.Visible = false
+    copiedLabel.Parent = bubble
+    
+    bubble.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isPressing = true
+            pressStartTime = tick()
+            
+            -- 显示复制提示
+            copyHint.Visible = true
+            
+            -- 开始长按检测
+            pressConnection = RunService.Heartbeat:Connect(function()
+                if isPressing and tick() - pressStartTime > 0.5 then -- 长按0.5秒
+                    -- 复制文本到剪贴板
+                    pcall(function()
+                        setclipboard(messageText)
+                    end)
+                    
+                    -- 显示"已复制"提示
+                    copyHint.Visible = false
+                    copiedLabel.Visible = true
+                    
+                    -- 1秒后隐藏提示
+                    delay(1, function()
+                        copiedLabel.Visible = false
+                    end)
+                    
+                    isPressing = false
+                    if pressConnection then
+                        pressConnection:Disconnect()
+                        pressConnection = nil
+                    end
+                end
+            end)
+        end
+    end)
+    
+    bubble.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isPressing = false
+            copyHint.Visible = false
+            if pressConnection then
+                pressConnection:Disconnect()
+                pressConnection = nil
+            end
+        end
+    end)
+end
+
+local function addMessage(sender, message, isUser, typingEffect)
+    local messageFrame = Instance.new("Frame", chatScroll)
+    messageFrame.Size = UDim2.new(1, -20, 0, 0)
+    messageFrame.BackgroundTransparency = 1
+    messageFrame.AutomaticSize = Enum.AutomaticSize.Y
+    messageFrame.LayoutOrder = #chatScroll:GetChildren()
+
+    -- 创建头像
+    local avatar = isUser and getPlayerAvatar() or createAIAvatar()
+    avatar.Parent = messageFrame
+
+    -- 计算气泡宽度
+    local textLength = #message
+    local bubbleWidth = math.min(0.8, math.max(0.4, textLength / 70)) -- 适应更宽窗口
+    
+    local bubble = Instance.new("TextLabel", messageFrame)
+    bubble.Size = UDim2.new(bubbleWidth, 0, 0, 0)
+    bubble.AutomaticSize = Enum.AutomaticSize.Y
+    bubble.TextWrapped = true
+    bubble.Font = Enum.Font.Gotham
+    bubble.TextSize = 12
+    bubble.Text = ""
+    bubble.BackgroundColor3 = isUser and Color3.fromRGB(80, 120, 220) or Color3.fromRGB(240, 243, 255)
+    bubble.TextColor3 = isUser and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(60, 70, 100)
+    bubble.TextXAlignment = Enum.TextXAlignment.Left
+    
+    Instance.new("UICorner", bubble).CornerRadius = UDim.new(0, 10)
+    
+    local padding = Instance.new("UIPadding", bubble)
+    padding.PaddingTop = UDim.new(0, 6)
+    padding.PaddingBottom = UDim.new(0, 6)
+    padding.PaddingLeft = UDim.new(0, 10)
+    padding.PaddingRight = UDim.new(0, 10)
+    
+    if isUser then
+        avatar.AnchorPoint = Vector2.new(1, 0)
+        avatar.Position = UDim2.new(1, -6, 0, 2)
+        
+        bubble.AnchorPoint = Vector2.new(1, 0)
+        bubble.Position = UDim2.new(1, -40, 0, 2)
+    else
+        avatar.AnchorPoint = Vector2.new(0, 0)
+        avatar.Position = UDim2.new(0, 6, 0, 2)
+        
+        bubble.AnchorPoint = Vector2.new(0, 0)
+        bubble.Position = UDim2.new(0, 40, 0, 2)
+        
+        -- 为AI消息添加长按复制功能
+        setupLongPressCopy(bubble, message)
+    end
+
+    -- 入场动画
+    bubble.Size = UDim2.new(0, 0, 0, 0)
+    bubble.BackgroundTransparency = 0.5
+    
+    local growTween = TweenService:Create(bubble, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(bubbleWidth, 0, 0, 0),
+        BackgroundTransparency = 0
+    })
+    growTween:Play()
+
+    if typingEffect then
+        local displayedText = ""
+        for i = 1, #message do
+            displayedText = string.sub(message, 1, i)
+            bubble.Text = displayedText
+            wait(0.03)
+        end
+    else
+        bubble.Text = message
+    end
+    
+    -- 修复：确保滚动到底部
+    wait(0.1)
+    if chatScroll.CanvasSize.Y.Offset > chatScroll.AbsoluteWindowSize.Y then
+        chatScroll.CanvasPosition = Vector2.new(0, chatScroll.CanvasSize.Y.Offset - chatScroll.AbsoluteWindowSize.Y)
+    end
+end
+
+-- 真实API调用
+local function callAI()
+    local payload = {
+        model = MODEL,
+        messages = currentHistory,
+        stream = false
+    }
+    
+    local success, result = pcall(function()
+        local response = HttpService:RequestAsync({
+            Url = "https://api.deepseek.com/v1/chat/completions",
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json",
+                ["Authorization"] = "Bearer " .. API_KEY
+            },
+            Body = HttpService:JSONEncode(payload)
+        })
+        
+        if response.Success then
+            local data = HttpService:JSONDecode(response.Body)
+            if data.choices and data.choices[1] and data.choices[1].message then
+                return data.choices[1].message.content
+            else
+                return "网络好像有点问题"
+            end
+        else
+            return "连接出错了"
+        end
+    end)
+    
+    if not success then
+        return "好像出了点问题"
+    end
+    
+    return result
+end
+
+local function sendMessage()
+    if busy then return end
+    
+    local message = inputBox.Text
+    if string.gsub(message, "^%s*(.-)%s*$", "%1") == "" then return end
+
+    addMessage("You", message, true, false)
+    table.insert(currentHistory, { role = "user", content = message })
+    
+    inputBox.Text = ""
+    busy = true
+    sendBtn.Text = "⋯"
+    sendBtn.BackgroundColor3 = Color3.fromRGB(140, 160, 200)
+
+    local reply = callAI()
+    
+    table.insert(currentHistory, { role = "assistant", content = reply })
+    addMessage("灵度AI", reply, false, true)
+    
+    busy = false
+    sendBtn.Text = "↑"
+    sendBtn.BackgroundColor3 = Color3.fromRGB(80, 120, 220)
+end
+
+-- 面板切换动画
+local function toggleSettings()
+    isSettingsVisible = not isSettingsVisible
+    
+    if isSettingsVisible then
+        settingsPanel.Visible = true
+        settingsPanel.BackgroundTransparency = 1
+        
+        local fadeIn = TweenService:Create(settingsPanel, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            BackgroundTransparency = 0
+        })
+        fadeIn:Play()
+        
+        chatArea.Visible = false
+    else
+        local fadeOut = TweenService:Create(settingsPanel, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            BackgroundTransparency = 1
+        })
+        fadeOut:Play()
+        
+        fadeOut.Completed:Connect(function()
+            settingsPanel.Visible = false
+            chatArea.Visible = true
+        end)
+    end
+end
+
+-- 为左侧按钮添加粒子效果
+addParticleEffectToButton(newChatBtn, Color3.fromRGB(80, 120, 220))
+addParticleEffectToButton(clearBtn, Color3.fromRGB(100, 140, 230))
+addParticleEffectToButton(settingsBtn, Color3.fromRGB(120, 160, 240))
+addParticleEffectToButton(applyBtn, Color3.fromRGB(80, 120, 220))
+
+-- 按钮交互
+openButton.MouseButton1Click:Connect(toggleUI)
+
+sendBtn.MouseButton1Click:Connect(sendMessage)
+
+inputBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        sendMessage()
+    end
+end)
+
+clearBtn.MouseButton1Click:Connect(function()
+    currentHistory = {
+        { role = "system", content = persona }
+    }
+    for _, child in ipairs(chatScroll:GetChildren()) do
+        if child:IsA("Frame") then
+            child:Destroy()
+        end
+    end
+    addMessage("灵度AI", "聊天已清空", false, true)
+end)
+
+newChatBtn.MouseButton1Click:Connect(function()
+    currentHistory = {
+        { role = "system", content = persona }
+    }
+    for _, child in ipairs(chatScroll:GetChildren()) do
+        if child:IsA("Frame") then
+            child:Destroy()
+        end
+    end
+    addMessage("灵度AI", "新对话开始", false, true)
+end)
+
+settingsBtn.MouseButton1Click:Connect(toggleSettings)
+
+applyBtn.MouseButton1Click:Connect(function()
+    persona = personaBox.Text
+    currentHistory = {
+        { role = "system", content = persona }
+    }
+    toggleSettings()
+    addMessage("系统", "设置已更新", false, true)
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    closeUI()
+end)
+
+minimizeBtn.MouseButton1Click:Connect(function()
+    closeUI()
+end)
+
+-- 按钮悬停效果
+local function setupButtonHover(button, defaultColor, hoverColor)
+    button.MouseEnter:Connect(function()
+        local tween = TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            BackgroundColor3 = hoverColor,
+            Size = button.Size + UDim2.new(0, 2, 0, 2)
+        })
+        tween:Play()
+    end)
+    button.MouseLeave:Connect(function()
+        local tween = TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            BackgroundColor3 = defaultColor,
+            Size = button.Size - UDim2.new(0, 2, 0, 2)
+        })
+        tween:Play()
+    end)
+end
+
+setupButtonHover(sendBtn, Color3.fromRGB(80, 120, 220), Color3.fromRGB(100, 140, 240))
+setupButtonHover(applyBtn, Color3.fromRGB(80, 120, 220), Color3.fromRGB(100, 140, 240))
+setupButtonHover(newChatBtn, Color3.fromRGB(80, 120, 220), Color3.fromRGB(100, 140, 240))
+setupButtonHover(clearBtn, Color3.fromRGB(100, 140, 230), Color3.fromRGB(120, 160, 250))
+setupButtonHover(settingsBtn, Color3.fromRGB(120, 160, 240), Color3.fromRGB(140, 180, 255))
+
+-- 键盘快捷键
+UserInputService.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.RightControl then
+        toggleUI()
+    end
+end)
+
+-- 初始化对话
+currentHistory = {
+    { role = "system", content = persona }
+}
